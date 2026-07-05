@@ -132,6 +132,15 @@ def build_server(settings: Settings | None = None) -> FastMCP:
         )
 
     @mcp.tool(annotations=READ_ONLY)
+    async def wait_for_activity(activity_id: int, timeout_seconds: float = 120.0) -> dict:
+        """Poll an activity (e.g. a reboot or patch job) until it finishes or times out,
+        then report its final status. Use after a write action to confirm success."""
+        return await _guarded_read(
+            "wait_for_activity", {"activity_id": activity_id},
+            client.wait_for_activity(activity_id, timeout=timeout_seconds),
+        )
+
+    @mcp.tool(annotations=READ_ONLY)
     async def list_scripts() -> dict:
         """Stored scripts available to run via execute_script."""
         rows = await _guarded_read("list_scripts", {}, client.get_scripts())
@@ -171,7 +180,7 @@ def build_server(settings: Settings | None = None) -> FastMCP:
             return {"error": str(exc)}
 
         try:
-            result = await run()
+            result = await run(ids)
         except LandscapeError as exc:
             audit.record(tool=tool, outcome="error", params={"query": query}, detail=str(exc))
             return {"error": str(exc)}
@@ -187,7 +196,7 @@ def build_server(settings: Settings | None = None) -> FastMCP:
         return await _dry_run_or_execute(
             "execute_script", "execute_script", query, confirm_token,
             f"Run script {script_id} as {username}",
-            lambda: client.execute_script(query, script_id, username),
+            lambda ids: client.execute_script(query, script_id, username),
         )
 
     @mcp.tool(annotations=DESTRUCTIVE)
@@ -195,7 +204,7 @@ def build_server(settings: Settings | None = None) -> FastMCP:
         """Reboot matched machines. Dry run first (omit confirm_token)."""
         return await _dry_run_or_execute(
             "reboot_computers", "reboot_computers", query, confirm_token,
-            "Reboot", lambda: client.reboot_computers(query),
+            "Reboot", lambda ids: client.reboot_computers(ids),
         )
 
     @mcp.tool(annotations=DESTRUCTIVE)
@@ -203,7 +212,38 @@ def build_server(settings: Settings | None = None) -> FastMCP:
         """Apply pending security (USN) upgrades to matched machines. Dry run first."""
         return await _dry_run_or_execute(
             "apply_security_upgrades", "apply_security_upgrades", query, confirm_token,
-            "Apply security upgrades", lambda: client.upgrade_packages(query, security_only=True),
+            "Apply security upgrades", lambda ids: client.upgrade_packages(query, security_only=True),
+        )
+
+    @mcp.tool(annotations=DESTRUCTIVE)
+    async def upgrade_packages(
+        query: str, packages: list[str] | None = None, confirm_token: str | None = None
+    ) -> dict:
+        """Upgrade packages on matched machines (omit `packages` to upgrade all). Dry run first."""
+        verb = f"Upgrade {packages}" if packages else "Upgrade all packages"
+        return await _dry_run_or_execute(
+            "upgrade_packages", "upgrade_packages", query, confirm_token,
+            verb, lambda ids: client.upgrade_packages(query, packages=packages),
+        )
+
+    @mcp.tool(annotations=DESTRUCTIVE)
+    async def install_packages(
+        query: str, packages: list[str], confirm_token: str | None = None
+    ) -> dict:
+        """Install packages on matched machines. Dry run first (omit confirm_token)."""
+        return await _dry_run_or_execute(
+            "install_packages", "install_packages", query, confirm_token,
+            f"Install {packages}", lambda ids: client.install_packages(query, packages),
+        )
+
+    @mcp.tool(annotations=DESTRUCTIVE)
+    async def remove_packages(
+        query: str, packages: list[str], confirm_token: str | None = None
+    ) -> dict:
+        """Remove packages from matched machines. Dry run first (omit confirm_token)."""
+        return await _dry_run_or_execute(
+            "remove_packages", "remove_packages", query, confirm_token,
+            f"Remove {packages}", lambda ids: client.remove_packages(query, packages),
         )
 
     @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False})
@@ -211,7 +251,15 @@ def build_server(settings: Settings | None = None) -> FastMCP:
         """Add tags to matched machines (non-destructive, but still write-gated)."""
         return await _dry_run_or_execute(
             "add_tags", "add_tags", query, confirm_token,
-            f"Add tags {tags}", lambda: client.add_tags(query, tags),
+            f"Add tags {tags}", lambda ids: client.add_tags(query, tags),
+        )
+
+    @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False})
+    async def remove_tags(query: str, tags: list[str], confirm_token: str | None = None) -> dict:
+        """Remove tags from matched machines (write-gated)."""
+        return await _dry_run_or_execute(
+            "remove_tags", "remove_tags", query, confirm_token,
+            f"Remove tags {tags}", lambda ids: client.remove_tags(query, tags),
         )
 
     # ─────────────────────────── RESOURCES ─────────────────────────

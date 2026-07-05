@@ -24,6 +24,9 @@ LEGACY_API_VERSION = "2011-08-01"
 REST_PREFIX = "/api/v2"
 LEGACY_PATH = "/api/"
 
+# Activity statuses that mean the job is finished (used by wait_for_activity).
+TERMINAL_STATUSES = {"succeeded", "failed", "canceled", "cancelled"}
+
 
 class LandscapeError(Exception):
     """Raised on a non-2xx response or transport failure. Agent-facing message."""
@@ -72,6 +75,18 @@ def sign_query(
     return signed
 
 
+def encode_body(signed: dict[str, str]) -> str:
+    """Serialise signed params into an x-www-form-urlencoded body.
+
+    Built explicitly (not via a dict encoder) so the bytes on the wire match
+    exactly what was signed — the server re-derives the signature from the
+    decoded params, so any encoding drift causes SignatureDoesNotMatch.
+    """
+    items = sorted((k, v) for k, v in signed.items() if k != "signature")
+    body = "&".join(f"{quote(k, safe='')}={quote(v, safe='')}" for k, v in items)
+    return body + "&signature=" + quote(signed["signature"], safe="")
+
+
 def _as_list(payload: Any) -> list[dict]:
     """Normalise a Landscape response into a list of dicts across API shapes."""
     if isinstance(payload, list):
@@ -108,7 +123,13 @@ class LandscapeClient:
             self.s.access_key, self.s.secret_key, self.s.landscape_url, action, params, timestamp=ts
         )
         url = self.s.landscape_url.rstrip("/") + LEGACY_PATH
-        return await self._send(self._http.post(url, data=signed))
+        return await self._send(
+            self._http.post(
+                url,
+                content=encode_body(signed),
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+        )
 
     async def _send(self, coro) -> Any:
         try:
@@ -142,7 +163,12 @@ class LandscapeClient:
             if query:
                 params["query"] = query
             return _as_list(await self._rest("GET", f"{REST_PREFIX}/computers", params=params))
-        return _as_list(await self._legacy("GetComputers", query=query, limit=limit, offset=offset))
+        # Legacy GetComputers rejects an empty `query` ("MissingParameter") but is
+        # happy with it omitted (returns all). Only send it when non-empty.
+        kwargs = {"limit": limit, "offset": offset}
+        if query:
+            kwargs["query"] = query
+        return _as_list(await self._legacy("GetComputers", **kwargs))
 
     async def get_computer(self, computer_id: int) -> dict:
         if self.is_rest:
@@ -163,7 +189,10 @@ class LandscapeClient:
             if query:
                 params["query"] = query
             return _as_list(await self._rest("GET", f"{REST_PREFIX}/activities", params=params))
-        return _as_list(await self._legacy("GetActivities", query=query, limit=limit))
+        kwargs = {"limit": limit}
+        if query:
+            kwargs["query"] = query
+        return _as_list(await self._legacy("GetActivities", **kwargs))
 
     async def get_activity(self, activity_id: int) -> dict:
         if self.is_rest:
@@ -172,6 +201,26 @@ class LandscapeClient:
         if not rows:
             raise LandscapeError(f"No activity with id {activity_id}")
         return rows[0]
+
+    async def wait_for_activity(
+        self, activity_id: int, timeout: float = 120.0, interval: float = 3.0
+    ) -> dict:
+        """Poll an activity until it reaches a terminal status or times out."""
+        import asyncio
+        import time as _time
+
+        deadline = _time.monotonic() + timeout
+        last: dict = {}
+        while True:
+            last = await self.get_activity(activity_id)
+            status = (last.get("activity_status") or "").lower()
+            if status in TERMINAL_STATUSES:
+                return {"activity_id": activity_id, "status": status, "timed_out": False,
+                        "summary": last.get("summary"), "result_text": last.get("result_text")}
+            if _time.monotonic() >= deadline:
+                return {"activity_id": activity_id, "status": status or "unknown",
+                        "timed_out": True, "summary": last.get("summary")}
+            await asyncio.sleep(interval)
 
     async def get_scripts(self) -> list[dict]:
         if self.is_rest:
@@ -187,10 +236,13 @@ class LandscapeClient:
             "ExecuteScript", query=query, script_id=script_id, username=username
         )
 
-    async def reboot_computers(self, query: str) -> dict:
+    async def reboot_computers(self, computer_ids: list[int]) -> dict:
+        # NB: legacy RebootComputers takes computer_ids, NOT a query string.
         if self.is_rest:
-            return await self._rest("POST", f"{REST_PREFIX}/computers/reboot", json={"query": query})
-        return await self._legacy("RebootComputers", query=query)
+            return await self._rest(
+                "POST", f"{REST_PREFIX}/computers/reboot", json={"computer_ids": computer_ids}
+            )
+        return await self._legacy("RebootComputers", computer_ids=computer_ids)
 
     async def add_tags(self, query: str, tags: list[str]) -> dict:
         if self.is_rest:
@@ -199,8 +251,35 @@ class LandscapeClient:
             )
         return await self._legacy("AddTagsToComputers", query=query, tags=tags)
 
-    async def upgrade_packages(self, query: str, security_only: bool) -> dict:
+    async def remove_tags(self, query: str, tags: list[str]) -> dict:
+        if self.is_rest:
+            return await self._rest(
+                "DELETE", f"{REST_PREFIX}/computers/tags", json={"query": query, "tags": tags}
+            )
+        return await self._legacy("RemoveTagsFromComputers", query=query, tags=tags)
+
+    async def install_packages(self, query: str, packages: list[str]) -> dict:
+        if self.is_rest:
+            body = {"query": query, "packages": packages}
+            return await self._rest("POST", f"{REST_PREFIX}/packages/install", json=body)
+        return await self._legacy("InstallPackages", query=query, packages=packages)
+
+    async def remove_packages(self, query: str, packages: list[str]) -> dict:
+        if self.is_rest:
+            body = {"query": query, "packages": packages}
+            return await self._rest("POST", f"{REST_PREFIX}/packages/remove", json=body)
+        return await self._legacy("RemovePackages", query=query, packages=packages)
+
+    async def upgrade_packages(
+        self, query: str, packages: list[str] | None = None, security_only: bool = False
+    ) -> dict:
+        # UpgradePackages: omit `packages` to upgrade everything; security_only for USNs.
         if self.is_rest:
             body = {"query": query, "security_only": security_only}
+            if packages:
+                body["packages"] = packages
             return await self._rest("POST", f"{REST_PREFIX}/packages/upgrade", json=body)
-        return await self._legacy("UpgradePackages", query=query, security_only=security_only)
+        kwargs: dict[str, Any] = {"query": query, "security_only": security_only}
+        if packages:
+            kwargs["packages"] = packages
+        return await self._legacy("UpgradePackages", **kwargs)

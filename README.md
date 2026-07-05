@@ -58,6 +58,19 @@ bob-ross            # stdio transport (Claude Desktop / Code)
 python -m bob_ross
 ```
 
+### Claude Code (CLI)
+
+Install once (user scope → available in every project). The `cd` wrapper makes it
+location-independent and keeps credentials in `.env` (never in Claude's config):
+
+```bash
+claude mcp add bob-ross --scope user -- \
+  bash -lc 'cd /path/to/bob-ross && exec ./.venv/bin/bob-ross'
+```
+
+Starts in read-only mode. To enable actions, flip `BOBROSS_READ_ONLY=false` and
+`BOBROSS_ALLOW_WRITES=true` in `.env`, then restart Claude Code.
+
 ### Claude Desktop / Code (stdio)
 
 ```json
@@ -75,9 +88,9 @@ python -m bob_ross
 ## Tools
 
 **Read:** `ping`, `list_computers`, `get_computer`, `resolve_query`,
-`list_alerts`, `list_activities`, `get_activity`, `list_scripts`
-**Write (gated):** `execute_script`, `reboot_computers`,
-`apply_security_upgrades`, `add_tags`
+`list_alerts`, `list_activities`, `get_activity`, `wait_for_activity`, `list_scripts`
+**Write (gated):** `execute_script`, `reboot_computers`, `apply_security_upgrades`,
+`upgrade_packages`, `install_packages`, `remove_packages`, `add_tags`, `remove_tags`
 
 **Resources:** `landscape://computers`, `landscape://alerts`
 **Prompts:** `patch_security_updates`
