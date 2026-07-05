@@ -72,6 +72,18 @@ def sign_query(
     return signed
 
 
+def encode_body(signed: dict[str, str]) -> str:
+    """Serialise signed params into an x-www-form-urlencoded body.
+
+    Built explicitly (not via a dict encoder) so the bytes on the wire match
+    exactly what was signed — the server re-derives the signature from the
+    decoded params, so any encoding drift causes SignatureDoesNotMatch.
+    """
+    items = sorted((k, v) for k, v in signed.items() if k != "signature")
+    body = "&".join(f"{quote(k, safe='')}={quote(v, safe='')}" for k, v in items)
+    return body + "&signature=" + quote(signed["signature"], safe="")
+
+
 def _as_list(payload: Any) -> list[dict]:
     """Normalise a Landscape response into a list of dicts across API shapes."""
     if isinstance(payload, list):
@@ -108,7 +120,13 @@ class LandscapeClient:
             self.s.access_key, self.s.secret_key, self.s.landscape_url, action, params, timestamp=ts
         )
         url = self.s.landscape_url.rstrip("/") + LEGACY_PATH
-        return await self._send(self._http.post(url, data=signed))
+        return await self._send(
+            self._http.post(
+                url,
+                content=encode_body(signed),
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+        )
 
     async def _send(self, coro) -> Any:
         try:
@@ -142,7 +160,12 @@ class LandscapeClient:
             if query:
                 params["query"] = query
             return _as_list(await self._rest("GET", f"{REST_PREFIX}/computers", params=params))
-        return _as_list(await self._legacy("GetComputers", query=query, limit=limit, offset=offset))
+        # Legacy GetComputers rejects an empty `query` ("MissingParameter") but is
+        # happy with it omitted (returns all). Only send it when non-empty.
+        kwargs = {"limit": limit, "offset": offset}
+        if query:
+            kwargs["query"] = query
+        return _as_list(await self._legacy("GetComputers", **kwargs))
 
     async def get_computer(self, computer_id: int) -> dict:
         if self.is_rest:
@@ -163,7 +186,10 @@ class LandscapeClient:
             if query:
                 params["query"] = query
             return _as_list(await self._rest("GET", f"{REST_PREFIX}/activities", params=params))
-        return _as_list(await self._legacy("GetActivities", query=query, limit=limit))
+        kwargs = {"limit": limit}
+        if query:
+            kwargs["query"] = query
+        return _as_list(await self._legacy("GetActivities", **kwargs))
 
     async def get_activity(self, activity_id: int) -> dict:
         if self.is_rest:

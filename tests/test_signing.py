@@ -1,6 +1,7 @@
 import base64
+from urllib.parse import parse_qs
 
-from bob_ross.client import sign_query
+from bob_ross.client import encode_body, sign_query
 
 TS = "2026-07-04T12:00:00Z"
 
@@ -42,3 +43,13 @@ def test_list_params_expand_to_indexed_keys():
 def test_bool_params_lowercased():
     signed = sign_query("AKID", "s", "https://ls.example.com", "UpgradePackages", {"security_only": True}, timestamp=TS)
     assert signed["security_only"] == "true"
+
+
+def test_encode_body_roundtrips_and_preserves_signature():
+    signed = _sign(query="tag:web server")  # value with a space
+    body = encode_body(signed)
+    decoded = parse_qs(body, keep_blank_values=True)
+    # The base64 signature (with +, /, =) must survive decoding intact.
+    assert decoded["signature"][0] == signed["signature"]
+    assert decoded["query"][0] == "tag:web server"
+    assert decoded["action"][0] == "GetComputers"
