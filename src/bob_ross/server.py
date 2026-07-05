@@ -16,6 +16,7 @@ from .audit import AuditLog
 from .client import LandscapeClient, LandscapeError
 from .config import Settings
 from .health import build_health
+from .packages import summarize_pending_updates
 from .safety import ConfirmStore, SafetyError, ensure_writes_enabled
 
 READ_ONLY = {"readOnlyHint": True, "openWorldHint": True}
@@ -206,6 +207,26 @@ def build_server(settings: Settings | None = None) -> FastMCP:
             now=datetime.now(timezone.utc), stale_after_seconds=stale_after_hours * 3600,
         )
         audit.record(tool="estate_health", outcome="read", target_count=result["total_computers"])
+        return result
+
+    @mcp.tool(annotations=READ_ONLY)
+    async def pending_updates(query: str, sample: int = 50) -> dict:
+        """List packages with pending upgrades on matched machines — what would actually
+        change if you patched. Returns totals, a per-machine upgrade count, and a sample
+        of packages. Preview this before apply_security_upgrades / upgrade_packages."""
+        try:
+            computers = await client.get_computers(limit=1000)
+            packages = await client.get_packages(query, upgrade=True, limit=5000)
+        except LandscapeError as exc:
+            audit.record(tool="pending_updates", outcome="error", params={"query": query}, detail=str(exc))
+            return {"error": str(exc)}
+        id_to_title = {
+            c.get("id"): c.get("title") or c.get("hostname") or f"id:{c.get('id')}"
+            for c in computers
+        }
+        result = summarize_pending_updates(packages, id_to_title=id_to_title, sample=sample)
+        audit.record(tool="pending_updates", outcome="read", params={"query": query},
+                     target_count=result["total_upgradeable_packages"])
         return result
 
     @mcp.tool(annotations=READ_ONLY)
