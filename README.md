@@ -75,9 +75,9 @@ python -m bob_ross
 ## Tools
 
 **Read:** `ping`, `list_computers`, `get_computer`, `resolve_query`,
-`list_alerts`, `list_activities`, `get_activity`, `list_scripts`
-**Write (gated):** `execute_script`, `reboot_computers`,
-`apply_security_upgrades`, `add_tags`
+`list_alerts`, `list_activities`, `get_activity`, `wait_for_activity`, `list_scripts`
+**Write (gated):** `execute_script`, `reboot_computers`, `apply_security_upgrades`,
+`upgrade_packages`, `install_packages`, `remove_packages`, `add_tags`, `remove_tags`
 
 **Resources:** `landscape://computers`, `landscape://alerts`
 **Prompts:** `patch_security_updates`
