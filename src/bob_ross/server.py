@@ -7,6 +7,7 @@ Read tools are always available. Write tools require BOTH safety switches off
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Any
 
 from fastmcp import FastMCP
@@ -14,6 +15,7 @@ from fastmcp import FastMCP
 from .audit import AuditLog
 from .client import LandscapeClient, LandscapeError
 from .config import Settings
+from .health import build_health
 from .safety import ConfirmStore, SafetyError, ensure_writes_enabled
 
 READ_ONLY = {"readOnlyHint": True, "openWorldHint": True}
@@ -130,6 +132,25 @@ def build_server(settings: Settings | None = None) -> FastMCP:
         return await _guarded_read(
             "get_activity", {"activity_id": activity_id}, client.get_activity(activity_id)
         )
+
+    @mcp.tool(annotations=READ_ONLY)
+    async def estate_health(stale_after_hours: float = 1.0) -> dict:
+        """One-shot situational awareness across the whole estate: totals, machines
+        needing reboots, stale/offline machines, distribution breakdown, alert counts,
+        recent failed activities, and a ranked `attention` list of what to act on."""
+        try:
+            computers = await client.get_computers(limit=1000)
+            alerts = await client.get_alerts()
+            activities = await client.get_activities(limit=50)
+        except LandscapeError as exc:
+            audit.record(tool="estate_health", outcome="error", detail=str(exc))
+            return {"error": str(exc)}
+        result = build_health(
+            computers, alerts, activities,
+            now=datetime.now(timezone.utc), stale_after_seconds=stale_after_hours * 3600,
+        )
+        audit.record(tool="estate_health", outcome="read", target_count=result["total_computers"])
+        return result
 
     @mcp.tool(annotations=READ_ONLY)
     async def wait_for_activity(activity_id: int, timeout_seconds: float = 120.0) -> dict:
