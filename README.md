@@ -58,6 +58,19 @@ bob-ross            # stdio transport (Claude Desktop / Code)
 python -m bob_ross
 ```
 
+### Claude Code (CLI)
+
+Install once (user scope → available in every project). The `cd` wrapper makes it
+location-independent and keeps credentials in `.env` (never in Claude's config):
+
+```bash
+claude mcp add bob-ross --scope user -- \
+  bash -lc 'cd /path/to/bob-ross && exec ./.venv/bin/bob-ross'
+```
+
+Starts in read-only mode. To enable actions, flip `BOBROSS_READ_ONLY=false` and
+`BOBROSS_ALLOW_WRITES=true` in `.env`, then restart Claude Code.
+
 ### Claude Desktop / Code (stdio)
 
 ```json
