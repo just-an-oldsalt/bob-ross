@@ -222,6 +222,29 @@ class LandscapeClient:
                         "timed_out": True, "summary": last.get("summary")}
             await asyncio.sleep(interval)
 
+    async def get_packages(
+        self,
+        query: str,
+        *,
+        upgrade: bool | None = None,
+        installed: bool | None = None,
+        available: bool | None = None,
+        held: bool | None = None,
+        search: str | None = None,
+        limit: int = 1000,
+    ) -> list[dict]:
+        filters = {"upgrade": upgrade, "installed": installed, "available": available,
+                   "held": held, "search": search}
+        if self.is_rest:
+            params: dict[str, Any] = {"limit": limit}
+            if query:
+                params["query"] = query
+            params.update({k: v for k, v in filters.items() if v is not None})
+            return _as_list(await self._rest("GET", f"{REST_PREFIX}/packages", params=params))
+        kwargs: dict[str, Any] = {"query": query, "limit": limit}
+        kwargs.update({k: v for k, v in filters.items() if v is not None})
+        return _as_list(await self._legacy("GetPackages", **kwargs))
+
     async def get_scripts(self) -> list[dict]:
         if self.is_rest:
             return _as_list(await self._rest("GET", f"{REST_PREFIX}/scripts"))
