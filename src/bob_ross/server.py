@@ -415,6 +415,25 @@ def build_server(settings: Settings | None = None) -> FastMCP:
         rows = await client.get_alerts()
         return {"alerts": rows, "count": len(rows)}
 
+    @mcp.resource("landscape://health")
+    async def health_resource() -> dict:
+        """Estate-health snapshot (same shape as the estate_health tool)."""
+        computers = await client.get_computers(limit=1000)
+        alerts = await client.get_alerts()
+        activities = await client.get_activities(limit=50)
+        return build_health(
+            computers, alerts, activities,
+            now=datetime.now(timezone.utc), stale_after_seconds=3600,
+        )
+
+    @mcp.resource("landscape://computer/{computer_id}")
+    async def computer_resource(computer_id: int) -> dict:
+        """Full detail for one computer by id (resource template)."""
+        try:
+            return await client.get_computer(int(computer_id))
+        except LandscapeError as exc:
+            return {"error": str(exc)}
+
     # ─────────────────────────── PROMPTS ───────────────────────────
     @mcp.prompt
     def patch_security_updates(tag: str = "staging") -> str:
@@ -422,9 +441,46 @@ def build_server(settings: Settings | None = None) -> FastMCP:
         return (
             f"Patch pending security updates on machines tagged '{tag}'.\n"
             f"1. Call resolve_query with query 'tag:{tag} alert:security-upgrades' to see the blast radius.\n"
-            f"2. Show me the count and sample, then call apply_security_upgrades (dry run).\n"
-            f"3. After I approve, re-call with the confirm_token.\n"
-            f"4. Poll list_activities to confirm success and report any failures."
+            f"2. Show me the count and sample, then call pending_updates to preview what changes.\n"
+            f"3. Call apply_security_upgrades (dry run), and after I approve, re-call with the\n"
+            f"   confirm_token and wait=true.\n"
+            f"4. Report per-machine success/failure from the completion summary."
+        )
+
+    @mcp.prompt
+    def triage_estate() -> str:
+        """Walk the whole estate and propose a prioritized action plan."""
+        return (
+            "Give me a triage of the Landscape estate:\n"
+            "1. Call estate_health.\n"
+            "2. Summarize the `attention` list into a prioritized plan (offline/stale first,\n"
+            "   then security upgrades, then reboots).\n"
+            "3. For anything you'd change, tell me the exact tool + query you'd run — but do NOT\n"
+            "   execute any write yet. Wait for my go-ahead on each."
+        )
+
+    @mcp.prompt
+    def reboot_reboot_required() -> str:
+        """Safely reboot every machine flagged reboot-required."""
+        return (
+            "Reboot all machines that need it:\n"
+            "1. Call resolve_query with 'alert:reboot-required' (or 'reboot_required:true') to\n"
+            "   list them and show me the blast radius.\n"
+            "2. After I confirm, call reboot_computers (dry run) then re-call with the\n"
+            "   confirm_token and wait=true.\n"
+            "3. Report which machines came back and any that failed/timed out."
+        )
+
+    @mcp.prompt
+    def patch_machine(hostname: str) -> str:
+        """Safely patch one machine end-to-end."""
+        return (
+            f"Patch the machine '{hostname}':\n"
+            f"1. Call pending_updates with query 'title:{hostname}' (or the right id) to show what\n"
+            f"   would change.\n"
+            f"2. Call apply_security_upgrades (dry run) for that machine.\n"
+            f"3. After I approve, re-call with the confirm_token and wait=true, then report the\n"
+            f"   completion status."
         )
 
     return mcp

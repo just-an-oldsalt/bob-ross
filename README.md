@@ -98,5 +98,7 @@ activity to a terminal status and return a `completion` summary
 (succeeded / failed / still-incomplete), so the agent knows the real outcome
 instead of just "queued".
 
-**Resources:** `landscape://computers`, `landscape://alerts`
-**Prompts:** `patch_security_updates`
+**Resources:** `landscape://computers`, `landscape://alerts`, `landscape://health`,
+`landscape://computer/{computer_id}` (template)
+**Prompts:** `patch_security_updates`, `triage_estate`, `reboot_reboot_required`,
+`patch_machine`
