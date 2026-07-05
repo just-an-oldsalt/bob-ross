@@ -58,7 +58,8 @@ git clone https://github.com/just-an-oldsalt/bob-ross
 cd bob-ross
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                    # run the safety / signing / config tests
+pytest                    # unit tests (safety / signing / config / health / ...)
+python scripts/smoke.py   # safe live smoke test vs your instance (read-only, no writes)
 ```
 </details>
 
