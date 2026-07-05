@@ -5,17 +5,37 @@ from bob_ross.health import build_health
 NOW = datetime(2026, 7, 5, 0, 0, 0, tzinfo=timezone.utc)
 
 COMPUTERS = [
-    {"id": 1, "title": "maddy-mc", "distribution": "24.04", "reboot_required_flag": False,
-     "last_ping_time": "2026-03-07T03:31:06Z"},               # ~120 days stale
-    {"id": 2, "title": "kaylee-mc", "distribution": "24.04", "reboot_required_flag": False,
-     "last_ping_time": "2026-07-05T00:00:00Z"},               # fresh
-    {"id": 6, "title": "grafana", "distribution": "22.04", "reboot_required_flag": True,
-     "last_ping_time": "2026-07-04T23:59:00Z"},               # fresh, needs reboot
+    {
+        "id": 1,
+        "title": "maddy-mc",
+        "distribution": "24.04",
+        "reboot_required_flag": False,
+        "last_ping_time": "2026-03-07T03:31:06Z",
+    },  # ~120 days stale
+    {
+        "id": 2,
+        "title": "kaylee-mc",
+        "distribution": "24.04",
+        "reboot_required_flag": False,
+        "last_ping_time": "2026-07-05T00:00:00Z",
+    },  # fresh
+    {
+        "id": 6,
+        "title": "grafana",
+        "distribution": "22.04",
+        "reboot_required_flag": True,
+        "last_ping_time": "2026-07-04T23:59:00Z",
+    },  # fresh, needs reboot
 ]
-ALERTS = [{"alert_type": "security-upgrades"}, {"alert_type": "security-upgrades"},
-          {"alert_type": "ComputerOfflineAlert"}]
-ACTIVITIES = [{"id": 359, "activity_status": "succeeded", "summary": "ok"},
-              {"id": 360, "activity_status": "failed", "summary": "apt lock"}]
+ALERTS = [
+    {"alert_type": "security-upgrades"},
+    {"alert_type": "security-upgrades"},
+    {"alert_type": "ComputerOfflineAlert"},
+]
+ACTIVITIES = [
+    {"id": 359, "activity_status": "succeeded", "summary": "ok"},
+    {"id": 360, "activity_status": "failed", "summary": "apt lock"},
+]
 
 
 def _health(hours=1.0):

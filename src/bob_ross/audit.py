@@ -27,10 +27,7 @@ _REDACT = {
 def redact(value: Any) -> Any:
     """Recursively replace secret-looking values with '***'."""
     if isinstance(value, dict):
-        return {
-            k: ("***" if k.lower() in _REDACT else redact(v))
-            for k, v in value.items()
-        }
+        return {k: ("***" if k.lower() in _REDACT else redact(v)) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
         return [redact(v) for v in value]
     return value

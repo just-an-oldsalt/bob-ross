@@ -22,7 +22,7 @@ def summarize_pending_updates(
 
     per_computer: dict = {}
     for p in packages:
-        for cid in (p.get("computers", {}).get("upgrades") or []):
+        for cid in p.get("computers", {}).get("upgrades") or []:
             per_computer[cid] = per_computer.get(cid, 0) + 1
 
     per_computer_named = {

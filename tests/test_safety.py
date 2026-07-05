@@ -1,5 +1,3 @@
-import time
-
 import pytest
 
 from bob_ross.audit import redact
@@ -64,7 +62,9 @@ def test_confirm_token_expires():
 
 
 def test_redaction():
-    out = redact({"secret_key": "abc", "nested": {"api_token": "xyz", "ok": 1}, "list": [{"password": "p"}]})
+    out = redact(
+        {"secret_key": "abc", "nested": {"api_token": "xyz", "ok": 1}, "list": [{"password": "p"}]}
+    )
     assert out["secret_key"] == "***"
     assert out["nested"]["api_token"] == "***"
     assert out["nested"]["ok"] == 1

@@ -11,9 +11,16 @@ def _server():
 async def test_expected_tools_registered():
     names = {t.name for t in await _server().list_tools()}
     for expected in (
-        "ping", "estate_health", "pending_updates", "resolve_query",
-        "reboot_computers", "execute_script", "apply_security_upgrades",
-        "wait_for_activity", "add_tags", "remove_tags",
+        "ping",
+        "estate_health",
+        "pending_updates",
+        "resolve_query",
+        "reboot_computers",
+        "execute_script",
+        "apply_security_upgrades",
+        "wait_for_activity",
+        "add_tags",
+        "remove_tags",
     ):
         assert expected in names, f"missing tool {expected}"
 
@@ -29,5 +36,8 @@ async def test_resources_and_templates_registered():
 async def test_prompts_registered():
     prompts = {p.name for p in await _server().list_prompts()}
     assert {
-        "patch_security_updates", "triage_estate", "reboot_reboot_required", "patch_machine"
+        "patch_security_updates",
+        "triage_estate",
+        "reboot_reboot_required",
+        "patch_machine",
     } <= prompts

@@ -1,5 +1,7 @@
 # Bob Ross 🎨
 
+[![CI](https://github.com/just-an-oldsalt/bob-ross/actions/workflows/ci.yml/badge.svg)](https://github.com/just-an-oldsalt/bob-ross/actions/workflows/ci.yml)
+
 > *"We don't make mistakes, just happy little servers."*
 
 An MCP server for managing a **Canonical Landscape** estate from an AI agent

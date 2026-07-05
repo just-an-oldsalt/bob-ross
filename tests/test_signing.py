@@ -7,7 +7,9 @@ TS = "2026-07-04T12:00:00Z"
 
 
 def _sign(**params):
-    return sign_query("AKID", "secret", "https://ls.example.com", "GetComputers", params, timestamp=TS)
+    return sign_query(
+        "AKID", "secret", "https://ls.example.com", "GetComputers", params, timestamp=TS
+    )
 
 
 def test_signature_is_deterministic():
@@ -29,19 +31,41 @@ def test_secret_changes_signature():
 
 def test_required_params_present():
     signed = _sign(query="x")
-    for key in ("action", "access_key_id", "signature_method", "signature_version", "timestamp", "version", "signature"):
+    for key in (
+        "action",
+        "access_key_id",
+        "signature_method",
+        "signature_version",
+        "timestamp",
+        "version",
+        "signature",
+    ):
         assert key in signed
     assert signed["signature_method"] == "HmacSHA256"
 
 
 def test_list_params_expand_to_indexed_keys():
-    signed = sign_query("AKID", "s", "https://ls.example.com", "AddTagsToComputers", {"tags": ["a", "b"]}, timestamp=TS)
+    signed = sign_query(
+        "AKID",
+        "s",
+        "https://ls.example.com",
+        "AddTagsToComputers",
+        {"tags": ["a", "b"]},
+        timestamp=TS,
+    )
     assert signed["tags.1"] == "a"
     assert signed["tags.2"] == "b"
 
 
 def test_bool_params_lowercased():
-    signed = sign_query("AKID", "s", "https://ls.example.com", "UpgradePackages", {"security_only": True}, timestamp=TS)
+    signed = sign_query(
+        "AKID",
+        "s",
+        "https://ls.example.com",
+        "UpgradePackages",
+        {"security_only": True},
+        timestamp=TS,
+    )
     assert signed["security_only"] == "true"
 
 

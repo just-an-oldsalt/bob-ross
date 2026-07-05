@@ -1,0 +1,51 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.just-an-oldsalt/bob-ross",
+  "description": "Manage a Canonical Landscape estate from an MCP client — inventory, patching, script execution, reboots — with a safety layer (read-only default, dry-run/confirm, blast-radius preview).",
+  "status": "active",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/just-an-oldsalt/bob-ross",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "bob-ross",
+      "version": "0.1.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "BOBROSS_LANDSCAPE_URL",
+          "description": "Base URL of the Landscape server (no trailing /api/).",
+          "isRequired": true
+        },
+        {
+          "name": "BOBROSS_ACCESS_KEY",
+          "description": "Legacy HMAC access key (use with BOBROSS_SECRET_KEY).",
+          "isSecret": true
+        },
+        {
+          "name": "BOBROSS_SECRET_KEY",
+          "description": "Legacy HMAC secret key.",
+          "isSecret": true
+        },
+        {
+          "name": "BOBROSS_API_TOKEN",
+          "description": "REST bearer token (alternative to the HMAC key pair).",
+          "isSecret": true
+        },
+        {
+          "name": "BOBROSS_READ_ONLY",
+          "description": "Block all write tools (default true).",
+          "isRequired": false
+        },
+        {
+          "name": "BOBROSS_ALLOW_WRITES",
+          "description": "Second switch required to enable writes (default false).",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}

@@ -68,7 +68,9 @@ def build_health(
     # Ranked, human-readable "do something about these" list.
     attention: list[str] = []
     for s in stale:
-        attention.append(f"{s['title']} offline/stale for {s['stale_hours']}h (last ping {s['last_ping']})")
+        attention.append(
+            f"{s['title']} offline/stale for {s['stale_hours']}h (last ping {s['last_ping']})"
+        )
     for c in reboot:
         attention.append(f"{_title(c)} needs a reboot")
     for t, n in sorted(alerts_by_type.items(), key=lambda kv: kv[1], reverse=True):
