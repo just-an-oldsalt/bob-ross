@@ -14,11 +14,15 @@ One-time setup on PyPI — add a **pending publisher**
 
 | Field | Value |
 | --- | --- |
-| PyPI Project Name | `bob-ross` |
+| PyPI Project Name | `bob-ross-landscape` |
 | Owner | `just-an-oldsalt` |
 | Repository name | `bob-ross` |
 | Workflow name | `publish.yml` |
 | Environment name | `pypi` |
+
+The **PyPI Project Name must exactly match `[project].name` in `pyproject.toml`**
+(`bob-ross-landscape`) — a mismatch makes the upload fail with a 400 from PyPI.
+The import package (`bob_ross`) and the CLI command (`bob-ross`) are unaffected.
 
 Then, in the GitHub repo, create an Environment named `pypi`
 (Settings → Environments) — optionally gate it with required reviewers.
@@ -30,10 +34,6 @@ To release:
 git tag v0.1.0 && git push origin v0.1.0
 gh release create v0.1.0 --generate-notes    # <- fires publish.yml
 ```
-
-> Note: `bob-ross` may be taken on PyPI. If so, rename `[project].name` in
-> `pyproject.toml` (e.g. `bob-ross-landscape`), update `packages[].identifier`
-> in `server.json`, and use that name in the PyPI publisher form above.
 
 ## 2. Publish to the MCP Registry
 

@@ -3,7 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "bob-ross"
+# PyPI distribution name (import stays `bob_ross`, CLI command stays `bob-ross`).
+name = "bob-ross-landscape"
 version = "0.1.0"
 description = "Bob Ross 🎨 — an MCP server for managing a Canonical Landscape estate. Happy little servers, no failed patches."
 readme = "README.md"
