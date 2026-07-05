@@ -155,7 +155,11 @@ class LandscapeClient:
     async def ping(self) -> dict:
         """Lightweight connectivity + auth check used by the `ping` tool."""
         computers = await self.get_computers(query="", limit=1)
-        return {"reachable": True, "auth_mode": self.s.auth_mode.value, "sample_size": len(computers)}
+        return {
+            "reachable": True,
+            "auth_mode": self.s.auth_mode.value,
+            "sample_size": len(computers),
+        }
 
     async def get_computers(self, query: str = "", limit: int = 50, offset: int = 0) -> list[dict]:
         if self.is_rest:
@@ -215,11 +219,20 @@ class LandscapeClient:
             last = await self.get_activity(activity_id)
             status = (last.get("activity_status") or "").lower()
             if status in TERMINAL_STATUSES:
-                return {"activity_id": activity_id, "status": status, "timed_out": False,
-                        "summary": last.get("summary"), "result_text": last.get("result_text")}
+                return {
+                    "activity_id": activity_id,
+                    "status": status,
+                    "timed_out": False,
+                    "summary": last.get("summary"),
+                    "result_text": last.get("result_text"),
+                }
             if _time.monotonic() >= deadline:
-                return {"activity_id": activity_id, "status": status or "unknown",
-                        "timed_out": True, "summary": last.get("summary")}
+                return {
+                    "activity_id": activity_id,
+                    "status": status or "unknown",
+                    "timed_out": True,
+                    "summary": last.get("summary"),
+                }
             await asyncio.sleep(interval)
 
     async def get_packages(
@@ -233,8 +246,13 @@ class LandscapeClient:
         search: str | None = None,
         limit: int = 1000,
     ) -> list[dict]:
-        filters = {"upgrade": upgrade, "installed": installed, "available": available,
-                   "held": held, "search": search}
+        filters = {
+            "upgrade": upgrade,
+            "installed": installed,
+            "available": available,
+            "held": held,
+            "search": search,
+        }
         if self.is_rest:
             params: dict[str, Any] = {"limit": limit}
             if query:

@@ -38,7 +38,11 @@ def _summarise(computers: list[dict]) -> dict:
 
 
 def _ids(computers: list[dict]) -> list:
-    return [c.get("id") or c.get("computer_id") for c in computers if (c.get("id") or c.get("computer_id"))]
+    return [
+        c.get("id") or c.get("computer_id")
+        for c in computers
+        if (c.get("id") or c.get("computer_id"))
+    ]
 
 
 def _extract_activity_ids(result: Any) -> list[int]:
@@ -85,7 +89,9 @@ def _summarize_completion(finals: list[dict]) -> dict:
         by_status[f["status"]] = by_status.get(f["status"], 0) + 1
     succeeded = [f for f in finals if f["status"] == "succeeded"]
     failures = [f for f in finals if f["status"] in _FAILED_STATUSES]
-    incomplete = [f for f in finals if f["status"] not in _FAILED_STATUSES and f["status"] != "succeeded"]
+    incomplete = [
+        f for f in finals if f["status"] not in _FAILED_STATUSES and f["status"] != "succeeded"
+    ]
     return {
         "tracked": len(finals),
         "by_status": by_status,
@@ -142,7 +148,8 @@ def build_server(settings: Settings | None = None) -> FastMCP:
         """List computers in the estate. `query` uses Landscape's query language
         (e.g. 'tag:web', 'os:noble', 'alert:security-upgrades')."""
         rows = await _guarded_read(
-            "list_computers", {"query": query, "limit": limit},
+            "list_computers",
+            {"query": query, "limit": limit},
             client.get_computers(query, limit, offset),
         )
         return rows if isinstance(rows, dict) and "error" in rows else _summarise(rows)
@@ -178,7 +185,8 @@ def build_server(settings: Settings | None = None) -> FastMCP:
     async def list_activities(query: str = "", limit: int = 50) -> dict:
         """Recent activities (async jobs) and their status. Use to track prior actions."""
         rows = await _guarded_read(
-            "list_activities", {"query": query, "limit": limit},
+            "list_activities",
+            {"query": query, "limit": limit},
             client.get_activities(query, limit),
         )
         return rows if isinstance(rows, dict) else {"activities": rows, "count": len(rows)}
@@ -203,8 +211,11 @@ def build_server(settings: Settings | None = None) -> FastMCP:
             audit.record(tool="estate_health", outcome="error", detail=str(exc))
             return {"error": str(exc)}
         result = build_health(
-            computers, alerts, activities,
-            now=datetime.now(timezone.utc), stale_after_seconds=stale_after_hours * 3600,
+            computers,
+            alerts,
+            activities,
+            now=datetime.now(timezone.utc),
+            stale_after_seconds=stale_after_hours * 3600,
         )
         audit.record(tool="estate_health", outcome="read", target_count=result["total_computers"])
         return result
@@ -218,15 +229,21 @@ def build_server(settings: Settings | None = None) -> FastMCP:
             computers = await client.get_computers(limit=1000)
             packages = await client.get_packages(query, upgrade=True, limit=5000)
         except LandscapeError as exc:
-            audit.record(tool="pending_updates", outcome="error", params={"query": query}, detail=str(exc))
+            audit.record(
+                tool="pending_updates", outcome="error", params={"query": query}, detail=str(exc)
+            )
             return {"error": str(exc)}
         id_to_title = {
             c.get("id"): c.get("title") or c.get("hostname") or f"id:{c.get('id')}"
             for c in computers
         }
         result = summarize_pending_updates(packages, id_to_title=id_to_title, sample=sample)
-        audit.record(tool="pending_updates", outcome="read", params={"query": query},
-                     target_count=result["total_upgradeable_packages"])
+        audit.record(
+            tool="pending_updates",
+            outcome="read",
+            params={"query": query},
+            target_count=result["total_upgradeable_packages"],
+        )
         return result
 
     @mcp.tool(annotations=READ_ONLY)
@@ -234,7 +251,8 @@ def build_server(settings: Settings | None = None) -> FastMCP:
         """Poll an activity (e.g. a reboot or patch job) until it finishes or times out,
         then report its final status. Use after a write action to confirm success."""
         return await _guarded_read(
-            "wait_for_activity", {"activity_id": activity_id},
+            "wait_for_activity",
+            {"activity_id": activity_id},
             client.wait_for_activity(activity_id, timeout=timeout_seconds),
         )
 
@@ -246,8 +264,15 @@ def build_server(settings: Settings | None = None) -> FastMCP:
 
     # ─────────────────── DESTRUCTIVE TOOLS (gated) ──────────────────
     async def _dry_run_or_execute(
-        tool: str, action: str, query: str, confirm_token: str | None, summary_verb: str, run,
-        *, wait: bool = False, wait_timeout: float = 180.0,
+        tool: str,
+        action: str,
+        query: str,
+        confirm_token: str | None,
+        summary_verb: str,
+        run,
+        *,
+        wait: bool = False,
+        wait_timeout: float = 180.0,
     ) -> dict:
         """Shared handshake: first call = dry run + token; second = execute.
 
@@ -266,11 +291,16 @@ def build_server(settings: Settings | None = None) -> FastMCP:
 
         if confirm_token is None:
             pending = confirm.issue(action, ids, summary)
-            audit.record(tool=tool, outcome="dry_run", params={"query": query}, target_count=len(ids))
+            audit.record(
+                tool=tool, outcome="dry_run", params={"query": query}, target_count=len(ids)
+            )
             return {
                 "status": "confirmation_required",
                 "summary": summary,
-                "blast_radius": {"count": len(ids), "sample": _summarise(targets)["computers"][:10]},
+                "blast_radius": {
+                    "count": len(ids),
+                    "sample": _summarise(targets)["computers"][:10],
+                },
                 "confirm_token": pending.token,
                 "expires_in_seconds": settings.confirm_ttl_seconds,
                 "next_step": f"Call {tool} again with confirm_token to execute.",
@@ -289,7 +319,12 @@ def build_server(settings: Settings | None = None) -> FastMCP:
             return {"error": str(exc)}
 
         audit.record(tool=tool, outcome="executed", params={"query": query}, target_count=len(ids))
-        response = {"status": "executed", "summary": summary, "target_count": len(ids), "result": result}
+        response = {
+            "status": "executed",
+            "summary": summary,
+            "target_count": len(ids),
+            "result": result,
+        }
 
         if wait:
             act_ids = _extract_activity_ids(result)
@@ -309,98 +344,152 @@ def build_server(settings: Settings | None = None) -> FastMCP:
 
     @mcp.tool(annotations=DESTRUCTIVE)
     async def execute_script(
-        query: str, script_id: int, username: str = "root", confirm_token: str | None = None,
-        wait: bool = False, wait_timeout: float = 180.0,
+        query: str,
+        script_id: int,
+        username: str = "root",
+        confirm_token: str | None = None,
+        wait: bool = False,
+        wait_timeout: float = 180.0,
     ) -> dict:
         """Run a stored script on matched machines. Dry run first (omit confirm_token).
         Set wait=true to poll the resulting activity to completion and report pass/fail."""
         return await _dry_run_or_execute(
-            "execute_script", "execute_script", query, confirm_token,
+            "execute_script",
+            "execute_script",
+            query,
+            confirm_token,
             f"Run script {script_id} as {username}",
             lambda ids: client.execute_script(query, script_id, username),
-            wait=wait, wait_timeout=wait_timeout,
+            wait=wait,
+            wait_timeout=wait_timeout,
         )
 
     @mcp.tool(annotations=DESTRUCTIVE)
     async def reboot_computers(
-        query: str, confirm_token: str | None = None,
-        wait: bool = False, wait_timeout: float = 300.0,
+        query: str,
+        confirm_token: str | None = None,
+        wait: bool = False,
+        wait_timeout: float = 300.0,
     ) -> dict:
         """Reboot matched machines. Dry run first (omit confirm_token).
         Set wait=true to poll until the reboot activity finishes."""
         return await _dry_run_or_execute(
-            "reboot_computers", "reboot_computers", query, confirm_token,
-            "Reboot", lambda ids: client.reboot_computers(ids),
-            wait=wait, wait_timeout=wait_timeout,
+            "reboot_computers",
+            "reboot_computers",
+            query,
+            confirm_token,
+            "Reboot",
+            lambda ids: client.reboot_computers(ids),
+            wait=wait,
+            wait_timeout=wait_timeout,
         )
 
     @mcp.tool(annotations=DESTRUCTIVE)
     async def apply_security_upgrades(
-        query: str, confirm_token: str | None = None,
-        wait: bool = False, wait_timeout: float = 600.0,
+        query: str,
+        confirm_token: str | None = None,
+        wait: bool = False,
+        wait_timeout: float = 600.0,
     ) -> dict:
         """Apply pending security (USN) upgrades to matched machines. Dry run first.
         Set wait=true to poll the upgrade activity to completion."""
         return await _dry_run_or_execute(
-            "apply_security_upgrades", "apply_security_upgrades", query, confirm_token,
-            "Apply security upgrades", lambda ids: client.upgrade_packages(query, security_only=True),
-            wait=wait, wait_timeout=wait_timeout,
+            "apply_security_upgrades",
+            "apply_security_upgrades",
+            query,
+            confirm_token,
+            "Apply security upgrades",
+            lambda ids: client.upgrade_packages(query, security_only=True),
+            wait=wait,
+            wait_timeout=wait_timeout,
         )
 
     @mcp.tool(annotations=DESTRUCTIVE)
     async def upgrade_packages(
-        query: str, packages: list[str] | None = None, confirm_token: str | None = None,
-        wait: bool = False, wait_timeout: float = 600.0,
+        query: str,
+        packages: list[str] | None = None,
+        confirm_token: str | None = None,
+        wait: bool = False,
+        wait_timeout: float = 600.0,
     ) -> dict:
         """Upgrade packages on matched machines (omit `packages` to upgrade all). Dry run first.
         Set wait=true to poll to completion."""
         verb = f"Upgrade {packages}" if packages else "Upgrade all packages"
         return await _dry_run_or_execute(
-            "upgrade_packages", "upgrade_packages", query, confirm_token,
-            verb, lambda ids: client.upgrade_packages(query, packages=packages),
-            wait=wait, wait_timeout=wait_timeout,
+            "upgrade_packages",
+            "upgrade_packages",
+            query,
+            confirm_token,
+            verb,
+            lambda ids: client.upgrade_packages(query, packages=packages),
+            wait=wait,
+            wait_timeout=wait_timeout,
         )
 
     @mcp.tool(annotations=DESTRUCTIVE)
     async def install_packages(
-        query: str, packages: list[str], confirm_token: str | None = None,
-        wait: bool = False, wait_timeout: float = 600.0,
+        query: str,
+        packages: list[str],
+        confirm_token: str | None = None,
+        wait: bool = False,
+        wait_timeout: float = 600.0,
     ) -> dict:
         """Install packages on matched machines. Dry run first (omit confirm_token).
         Set wait=true to poll to completion."""
         return await _dry_run_or_execute(
-            "install_packages", "install_packages", query, confirm_token,
-            f"Install {packages}", lambda ids: client.install_packages(query, packages),
-            wait=wait, wait_timeout=wait_timeout,
+            "install_packages",
+            "install_packages",
+            query,
+            confirm_token,
+            f"Install {packages}",
+            lambda ids: client.install_packages(query, packages),
+            wait=wait,
+            wait_timeout=wait_timeout,
         )
 
     @mcp.tool(annotations=DESTRUCTIVE)
     async def remove_packages(
-        query: str, packages: list[str], confirm_token: str | None = None,
-        wait: bool = False, wait_timeout: float = 600.0,
+        query: str,
+        packages: list[str],
+        confirm_token: str | None = None,
+        wait: bool = False,
+        wait_timeout: float = 600.0,
     ) -> dict:
         """Remove packages from matched machines. Dry run first (omit confirm_token).
         Set wait=true to poll to completion."""
         return await _dry_run_or_execute(
-            "remove_packages", "remove_packages", query, confirm_token,
-            f"Remove {packages}", lambda ids: client.remove_packages(query, packages),
-            wait=wait, wait_timeout=wait_timeout,
+            "remove_packages",
+            "remove_packages",
+            query,
+            confirm_token,
+            f"Remove {packages}",
+            lambda ids: client.remove_packages(query, packages),
+            wait=wait,
+            wait_timeout=wait_timeout,
         )
 
     @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False})
     async def add_tags(query: str, tags: list[str], confirm_token: str | None = None) -> dict:
         """Add tags to matched machines (non-destructive, but still write-gated)."""
         return await _dry_run_or_execute(
-            "add_tags", "add_tags", query, confirm_token,
-            f"Add tags {tags}", lambda ids: client.add_tags(query, tags),
+            "add_tags",
+            "add_tags",
+            query,
+            confirm_token,
+            f"Add tags {tags}",
+            lambda ids: client.add_tags(query, tags),
         )
 
     @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False})
     async def remove_tags(query: str, tags: list[str], confirm_token: str | None = None) -> dict:
         """Remove tags from matched machines (write-gated)."""
         return await _dry_run_or_execute(
-            "remove_tags", "remove_tags", query, confirm_token,
-            f"Remove tags {tags}", lambda ids: client.remove_tags(query, tags),
+            "remove_tags",
+            "remove_tags",
+            query,
+            confirm_token,
+            f"Remove tags {tags}",
+            lambda ids: client.remove_tags(query, tags),
         )
 
     # ─────────────────────────── RESOURCES ─────────────────────────
@@ -422,8 +511,11 @@ def build_server(settings: Settings | None = None) -> FastMCP:
         alerts = await client.get_alerts()
         activities = await client.get_activities(limit=50)
         return build_health(
-            computers, alerts, activities,
-            now=datetime.now(timezone.utc), stale_after_seconds=3600,
+            computers,
+            alerts,
+            activities,
+            now=datetime.now(timezone.utc),
+            stale_after_seconds=3600,
         )
 
     @mcp.resource("landscape://computer/{computer_id}")
