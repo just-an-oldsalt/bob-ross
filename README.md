@@ -92,5 +92,10 @@ Starts in read-only mode. To enable actions, flip `BOBROSS_READ_ONLY=false` and
 **Write (gated):** `execute_script`, `reboot_computers`, `apply_security_upgrades`,
 `upgrade_packages`, `install_packages`, `remove_packages`, `add_tags`, `remove_tags`
 
+Activity-creating write tools accept `wait=true` to poll the resulting Landscape
+activity to a terminal status and return a `completion` summary
+(succeeded / failed / still-incomplete), so the agent knows the real outcome
+instead of just "queued".
+
 **Resources:** `landscape://computers`, `landscape://alerts`
 **Prompts:** `patch_security_updates`
