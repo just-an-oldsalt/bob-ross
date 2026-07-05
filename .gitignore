@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Secrets & local config — NEVER commit these
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Audit logs (may contain fleet detail)
+*.jsonl
+audit.log*
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.DS_Store

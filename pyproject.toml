@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bob-ross"
+version = "0.1.0"
+description = "Bob Ross 🎨 — an MCP server for managing a Canonical Landscape estate. Happy little servers, no failed patches."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Bob Ross MCP" }]
+keywords = ["mcp", "landscape", "canonical", "ubuntu", "fleet-management"]
+dependencies = [
+    "fastmcp>=2.3.0",
+    "httpx>=0.27",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+bob-ross = "bob_ross.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bob_ross"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
